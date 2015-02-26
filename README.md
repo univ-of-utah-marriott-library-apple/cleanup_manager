@@ -1,4 +1,4 @@
-trashman
-========
+Cleanup Manager
+===============
 
-Trashman helps you clean up folders on your Mac's hard drive.
+Cleanup Manager helps you clean up folders on your Mac's hard drive.
