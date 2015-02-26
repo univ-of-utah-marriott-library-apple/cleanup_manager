@@ -187,7 +187,8 @@ if __name__ == '__main__':
         print(version())
         sys.exit(0)
     
-    # Set the logging level.
+    # Set the logging level. There's the regular level, the verbose level,
+    # and the super-verbose level.
     if args.verbose is None:
         log_level = 20
     elif args.verbose == 1:
@@ -197,7 +198,7 @@ if __name__ == '__main__':
     
     # Build the logger.
     logger = loggers.get_logger(
-        name  = "",
+        name  = 'cleanup_manager',
         log   = not args.no_log,
         level = log_level,
         path  = args.log_dest
@@ -210,4 +211,14 @@ if __name__ == '__main__':
     # Get the Unix timestamp of the deletion date.
     keep_after = date_to_unix(args.keep_after, args.format)
     
-    main(args.target, keep_after, logger)
+    # Run it!
+    try:
+        main(
+            target     = args.target,
+            keep_after = keep_after,
+            logger     = logger,
+        )
+    except:
+        # Output the exception with the error name and its message. Suppresses the stack trace.
+        logger.error("{errname}: {error}".format(errname=sys.exc_info()[0].__name__, error=sys.exc_info()[1].message))
+        sys.exit(3)
