@@ -5,9 +5,9 @@ import sys
 
 def delete_links(links):
     """
+    Unmake all of the links.
     
-    :param links:
-    :param logger:
+    :param links: A list containing paths to link objects to be deleted.
     """
     for link in links:
         try:
@@ -20,9 +20,9 @@ def delete_links(links):
 
 def delete_files(files):
     """
+    Remove all of the files.
     
-    :param files:
-    :param logger:
+    :param files: A list containing paths to files to be deleted.
     """
     for file in files:
         try:
@@ -35,9 +35,9 @@ def delete_files(files):
 
 def delete_folders(folders):
     """
+    Recursively delete the folders.
     
-    :param folders:
-    :param logger:
+    :param folders: A list containing folders to be deleted.
     """
     for folder in folders:
         try:

@@ -3,6 +3,8 @@ import os
 
 def get_deletable_inventory(keep_after, target=None, folders=None, files=None, links=None):
     """
+    Finds all of the items within an inventory that can be deleted based on
+    their last modification date.
     
     :param target:
     :param keep_after:
@@ -39,9 +41,29 @@ def get_deletable_inventory(keep_after, target=None, folders=None, files=None, l
 
 def get_inventory(target):
     """
+    Given a target directory, finds all subitems within that directory and
+    stores them in separate lists, ie folders, files, and links.
+    
+    Folder and file lists are full of tuples as:
+        (folder/file path, modification timestamp, size)
+    where:
+        folder/file path:       the patht to the object
+        modification timestamp: the Unix timestamp of the last modification
+        size:                   the size of the object
+    Folder sizes are just the sum of their content, and folder modification
+    times are considered to be the most-recent timestamp among all objects
+    within that folder.
+    
+    Link list is full of tuples as:
+        (link path, target path, internal)
+    where:
+        link path:   the path to the link object
+        target path: the target that the link points to
+        internal:    whether the target is in this inventory
     
     :param target: directory to search for inventory
     :return: a tuple containing lists containing tuples describing the contents
+             as (folders, files, links)
     """
     if not os.path.isdir(target):
         raise ValueError("The target must be a valid, existing directory.")
