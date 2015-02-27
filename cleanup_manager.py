@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+__name__ = 'cleanup_manager'
+
 import cleanup_manager
 
 import argparse
@@ -18,8 +20,6 @@ except ImportError as e:
 
 
 def main(target, keep_after, logger):
-    """
-    """
     target = os.path.abspath(target)
     
     folders, files, links = cleanup_manager.analysis.get_inventory(target)
@@ -63,14 +63,83 @@ def main(target, keep_after, logger):
 
 def version():
     """
+    :return: The version information for this program.
     """
-    return ("")
+    return ("{name}, version {version}\n".format(name=__name__, version=cleanup_manager.__version__))
 
 
 def usage():
     """
+    Prints usage information.
     """
-    print("")
+    print(version())
+    
+    print('''\
+usage: {name} [-hvnV] [-l log] [-k date] [-f format] target
+
+Delete old items from a specific directory, but only at a top-level granularity.
+
+    -h, --help
+        Print this help message and quit.
+    -v, --version
+        Print the version information and quit.
+    -n, --no-log
+        Do not output log events to file.
+    -V, --verbose
+        Increase verbosity to see more information. Two levels of verbosity are
+        supported.
+
+    -l log, --log-dest log
+        Redirect log file output to 'log'.
+    -k date, --keep-after date
+        The date to compare file modification times to. Anything before this
+        date will be removed.
+        default: seven days prior to today, rounded down to midnight
+    -f format, --format format
+        The date format, given as a Python datetime.datetime.strptime()-
+        compatible format.
+        default: '%Y-%m-%d'
+    
+    target
+        The top-level directory to delete from within.
+
+Cleanup Manager is a simple script to help you delete items from folders en
+masse.
+
+Originally conceived to delete user home directories in student labs at a
+university, Cleanup Manager takes a look at a directory's contents and checks
+them recursively for the most recently-modified timestamp. This timestamp is
+compared against the keep-after date, and any item with a timestamp older than
+that date is deleted.
+
+KEEP-AFTER DATE
+    The date can be either absolute or relative. Absolute dates can be given
+    with a format to indicate how you want it parsed.
+
+    Relative dates can be given as:
+        NNNXr
+    where "N" is an integer number, "X" represents a shorthand form of
+    the time scale, i.e.:
+        M - minutes
+        H - hours
+        d - days
+        m - months
+        y - years
+    and "r" or "R" indicates that the date should be rounded back to
+    the previous midnight.
+    
+EXAMPLE
+    To delete everything older than four days ago:
+        cleanup_manager.py -k 4d
+
+LINKS
+    All links existing within the directory structure are checked for whether
+    they point internally; that is, if a link points to a file or folder that is
+    going to be deleted, or if it is in a folder that is going to be deleted,
+    the link is unmade. However, this program does not check the rest of the
+    system to ensure that external links do not point inside a deleted
+    directory.
+''')
 
 
 def date_to_unix(date, date_format):
@@ -164,6 +233,10 @@ def date_to_unix(date, date_format):
     
     return unix_time
 
+##------------------------------------------------------------------------------
+## Program entry point.
+##------------------------------------------------------------------------------
+
 if __name__ == '__main__':
     # Build the argument parser.
     parser = argparse.ArgumentParser(add_help=False)
@@ -172,7 +245,7 @@ if __name__ == '__main__':
     parser.add_argument('-n', '--no-log', action='store_true')
     parser.add_argument('-V', '--verbose', action='count')
     parser.add_argument('-l', '--log-dest')
-    parser.add_argument('-k', '--keep-after', default='-7d')
+    parser.add_argument('-k', '--keep-after', default='-7dr')
     parser.add_argument('-f', '--format', default='%Y-%m-%d')
     parser.add_argument('target', nargs='?', default=os.getcwd())
     
