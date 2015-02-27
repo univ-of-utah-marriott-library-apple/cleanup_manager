@@ -54,7 +54,7 @@ def main(target, keep_after, skip_prompt, logger):
     else:
         for link in delete_links:
             logger.verbose("    {}".format(link))
-        # cleanup_manager.cleanup.delete_links(delete_links)
+        cleanup_manager.cleanup.delete_links(delete_links)
         logger.debug("Bad links removed.")
     
     # Then delete files.
@@ -64,7 +64,7 @@ def main(target, keep_after, skip_prompt, logger):
     else:
         for file in delete_files:
             logger.verbose("    {}".format(file))
-        # cleanup_manager.cleanup.delete_files(delete_files)
+        cleanup_manager.cleanup.delete_files(delete_files)
         logger.debug("Files removed.")
     
     # And then delete folders.
@@ -74,7 +74,7 @@ def main(target, keep_after, skip_prompt, logger):
     else:
         for folder in delete_folders:
             logger.verbose("    {}".format(folder))
-        # cleanup_manager.cleanup.delete_folders(delete_folders)
+        cleanup_manager.cleanup.delete_folders(delete_folders)
         logger.debug("Folders removed.")
     
     logger.info("Cleanup complete.")
