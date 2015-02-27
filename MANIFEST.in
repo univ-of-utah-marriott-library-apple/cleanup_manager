@@ -1,0 +1,6 @@
+include LICENSE.md
+include README.md
+include MANIFEST.in
+recursive-include cleanup-management *
+recursive-exclude * *.py[co]
+recursive-exclude build *
