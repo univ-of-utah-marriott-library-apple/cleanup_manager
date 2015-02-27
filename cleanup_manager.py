@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import cleanup_manager
+import cleanup_management
 
 import argparse
 import datetime
@@ -20,9 +20,9 @@ except ImportError as e:
 def main(target, keep_after, skip_prompt, logger):
     target = os.path.abspath(target)
     
-    folders, files, links = cleanup_manager.analysis.get_inventory(target)
+    folders, files, links = cleanup_management.analysis.get_inventory(target)
     
-    delete_folders, delete_files, delete_links = cleanup_manager.analysis.get_deletable_inventory(keep_after=keep_after, folders=folders, files=files, links=links)
+    delete_folders, delete_files, delete_links = cleanup_management.analysis.get_deletable_inventory(keep_after=keep_after, folders=folders, files=files, links=links)
     
     if not skip_prompt:
         logger.info("These items will be deleted:")
@@ -54,7 +54,7 @@ def main(target, keep_after, skip_prompt, logger):
     else:
         for link in delete_links:
             logger.verbose("    {}".format(link))
-        cleanup_manager.cleanup.delete_links(delete_links)
+        cleanup_management.cleanup.delete_links(delete_links)
         logger.debug("Bad links removed.")
     
     # Then delete files.
@@ -64,7 +64,7 @@ def main(target, keep_after, skip_prompt, logger):
     else:
         for file in delete_files:
             logger.verbose("    {}".format(file))
-        cleanup_manager.cleanup.delete_files(delete_files)
+        cleanup_management.cleanup.delete_files(delete_files)
         logger.debug("Files removed.")
     
     # And then delete folders.
@@ -74,7 +74,7 @@ def main(target, keep_after, skip_prompt, logger):
     else:
         for folder in delete_folders:
             logger.verbose("    {}".format(folder))
-        cleanup_manager.cleanup.delete_folders(delete_folders)
+        cleanup_management.cleanup.delete_folders(delete_folders)
         logger.debug("Folders removed.")
     
     logger.info("Cleanup complete.")
@@ -108,7 +108,7 @@ def version():
     """
     :return: The version information for this program.
     """
-    return ("{name}, version {version}\n".format(name='cleanup_manager', version=cleanup_manager.__version__))
+    return ("{name}, version {version}\n".format(name='cleanup_management', version=cleanup_management.__version__))
 
 
 def usage():
@@ -176,7 +176,7 @@ KEEP-AFTER DATE
     
 EXAMPLE
     To delete everything older than four days ago:
-        cleanup_manager.py -k 4d
+        cleanup_management.py -k 4d
 
 LINKS
     All links existing within the directory structure are checked for whether
@@ -185,7 +185,7 @@ LINKS
     the link is unmade. However, this program does not check the rest of the
     system to ensure that external links do not point inside a deleted
     directory.\
-'''.format(name='cleanup_manager'))
+'''.format(name='cleanup_management'))
 
 
 def date_to_unix(date, date_format):
@@ -318,7 +318,7 @@ if __name__ == '__main__':
     
     # Build the logger.
     logger = loggers.get_logger(
-        name  = 'cleanup_manager',
+        name  = 'cleanup_management',
         log   = not args.no_log,
         level = log_level,
         path  = args.log_dest
