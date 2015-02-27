@@ -17,12 +17,33 @@ except ImportError as e:
     raise e
 
 
-def main(target, keep_after, logger):
+def main(target, keep_after, skip_prompt, logger):
     target = os.path.abspath(target)
     
     folders, files, links = cleanup_manager.analysis.get_inventory(target)
     
     delete_folders, delete_files, delete_links = cleanup_manager.analysis.get_deletable_inventory(keep_after=keep_after, folders=folders, files=files, links=links)
+    
+    if not skip_prompt:
+        logger.info("These items will be deleted:")
+        
+        if len(delete_links) > 0:
+            logger.info("    Links:")
+            for link in delete_links:
+                logger.info("        {}".format(link))
+        
+        if len(delete_files) > 0:
+            logger.info("    Files:")
+            for file in delete_files:
+                logger.info("        {}".format(file))
+        
+        if len(delete_folders) > 0:
+            logger.info("    Folders:")
+            for folder in delete_folders:
+                logger.info("        {}".format(folder))
+        
+        if not query_yes_no("Proceed with cleanup?"):
+            sys.exit(7)
     
     logger.info("Deleting contents recursively older than {} from {}".format(datetime.datetime.fromtimestamp(keep_after), target))
     
@@ -33,7 +54,7 @@ def main(target, keep_after, logger):
     else:
         for link in delete_links:
             logger.verbose("    {}".format(link))
-        cleanup_manager.cleanup.delete_links(delete_links)
+        # cleanup_manager.cleanup.delete_links(delete_links)
         logger.debug("Bad links removed.")
     
     # Then delete files.
@@ -43,7 +64,7 @@ def main(target, keep_after, logger):
     else:
         for file in delete_files:
             logger.verbose("    {}".format(file))
-        cleanup_manager.cleanup.delete_files(delete_files)
+        # cleanup_manager.cleanup.delete_files(delete_files)
         logger.debug("Files removed.")
     
     # And then delete folders.
@@ -53,10 +74,34 @@ def main(target, keep_after, logger):
     else:
         for folder in delete_folders:
             logger.verbose("    {}".format(folder))
-        cleanup_manager.cleanup.delete_folders(delete_folders)
+        # cleanup_manager.cleanup.delete_folders(delete_folders)
         logger.debug("Folders removed.")
     
     logger.info("Cleanup complete.")
+
+def query_yes_no(question):
+    """
+    Asks a user a yes/no question and expects a valid response.
+    
+    :param question: The prompt to give to the user.
+    :return: A boolean; True for 'yes', False for 'no'.
+    """
+    valid = {
+        'yes': True, 'ye': True, 'y': True,
+        'no': False, 'n': False
+    }
+    
+    # Until they give valid input, loop and keep asking the question.
+    while True:
+        # Note the comma at the end. We don't want a newline.
+        print("{} [y/N] ".format(question)),
+        choice = raw_input().lower()
+        if choice == '':
+            return False
+        elif choice in valid:
+            return valid[choice]
+        else:
+            print("Please respond with 'yes' or 'no'.")
 
 
 def version():
@@ -86,6 +131,9 @@ Delete old items from a specific directory, but only at a top-level granularity.
     -V, --verbose
         Increase verbosity to see more information. Two levels of verbosity are
         supported.
+    --skip-prompt
+        Skips the confirmation prompt. Warning: this will lead to lots of
+        deletion.
 
     -l log, --log-dest log
         Redirect log file output to 'log'.
@@ -242,6 +290,7 @@ if __name__ == '__main__':
     parser.add_argument('-v', '--version', action='store_true')
     parser.add_argument('-n', '--no-log', action='store_true')
     parser.add_argument('-V', '--verbose', action='count')
+    parser.add_argument('--skip-prompt', action='store_true')
     parser.add_argument('-l', '--log-dest')
     parser.add_argument('-k', '--keep-after', default='-7dr')
     parser.add_argument('-f', '--format', default='%Y-%m-%d')
@@ -287,6 +336,7 @@ if __name__ == '__main__':
         main(
             target     = args.target,
             keep_after = keep_after,
+            skip_prompt = args.skip_prompt,
             logger     = logger,
         )
     except:
