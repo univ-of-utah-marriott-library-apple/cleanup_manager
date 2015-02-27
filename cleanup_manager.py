@@ -1,7 +1,5 @@
 #!/usr/bin/env python
 
-__name__ = 'cleanup_manager'
-
 import cleanup_manager
 
 import argparse
@@ -35,7 +33,7 @@ def main(target, keep_after, logger):
     else:
         for link in delete_links:
             logger.verbose("    {}".format(link))
-        cleanup_manager.cleanup.delete_links(delete_links, logger)
+        cleanup_manager.cleanup.delete_links(delete_links)
         logger.debug("Bad links removed.")
     
     # Then delete files.
@@ -45,7 +43,7 @@ def main(target, keep_after, logger):
     else:
         for file in delete_files:
             logger.verbose("    {}".format(file))
-        cleanup_manager.cleanup.delete_files(delete_files, logger)
+        cleanup_manager.cleanup.delete_files(delete_files)
         logger.debug("Files removed.")
     
     # And then delete folders.
@@ -55,7 +53,7 @@ def main(target, keep_after, logger):
     else:
         for folder in delete_folders:
             logger.verbose("    {}".format(folder))
-        cleanup_manager.cleanup.delete_folders(delete_folders, logger)
+        cleanup_manager.cleanup.delete_folders(delete_folders)
         logger.debug("Folders removed.")
     
     logger.info("Cleanup complete.")
@@ -65,7 +63,7 @@ def version():
     """
     :return: The version information for this program.
     """
-    return ("{name}, version {version}\n".format(name=__name__, version=cleanup_manager.__version__))
+    return ("{name}, version {version}\n".format(name='cleanup_manager', version=cleanup_manager.__version__))
 
 
 def usage():
@@ -138,8 +136,8 @@ LINKS
     going to be deleted, or if it is in a folder that is going to be deleted,
     the link is unmade. However, this program does not check the rest of the
     system to ensure that external links do not point inside a deleted
-    directory.
-''')
+    directory.\
+'''.format(name='cleanup_manager'))
 
 
 def date_to_unix(date, date_format):
