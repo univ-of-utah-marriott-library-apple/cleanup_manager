@@ -5,14 +5,16 @@ import cleanup_management
 import argparse
 import datetime
 import os
+import re
 import sys
 import time
 
 
 try:
     from management_tools import loggers
+    from management_tools import fs_analysis as fsa
 except ImportError as e:
-    print("You need version 1.7.0 or greater of the 'Management Tools' module to be installed first.")
+    print("You need version 1.8.0 or greater of the 'Management Tools' module to be installed first.")
     print("https://github.com/univ-of-utah-marriott-library-apple/management_tools")
     raise e
 
@@ -22,7 +24,7 @@ def main(target, keep_after, skip_prompt, logger):
     
     folders, files, links = cleanup_management.analysis.get_inventory(target)
     
-    delete_folders, delete_files, delete_links = cleanup_management.analysis.get_deletable_inventory(keep_after=keep_after, folders=folders, files=files, links=links)
+    delete_folders, delete_files, delete_links = cleanup_management.analysis.get_date_based_deletable_inventory(keep_after=keep_after, folders=folders, files=files, links=links)
     
     if not skip_prompt:
         logger.info("These items will be deleted:")
@@ -217,7 +219,6 @@ def date_to_unix(date, date_format):
     except ValueError:
         # If that didn't work, let's try to parse the string for a relative
         # date according to the given specifications.
-        import re
         relative_match = re.match(r"\A-?(\d+)([a-zA-Z]?)([rR]?)\Z", date)
         
         if relative_match:
@@ -279,6 +280,48 @@ def date_to_unix(date, date_format):
     
     return unix_time
 
+def volume_size_target(size, target):
+    """
+    
+    :param size:
+    """
+    volume = fsa.Filesystem(fsa.get_responsible_fs(target))
+    print("volume: {}".format(volume))
+    percentage = None
+    try:
+        # Is it just the percentage?
+        percentage = int(size)
+    except ValueError:
+        # Nope. Let's do some parsing.
+        size_match = re.match(r"^(\d+)([bkmgt])([v]?)$", size.lower())
+        if not size_match:
+            raise ValueError("{size} is not a valid size-deletion target".format(size=size))
+        
+        amount, size_indicator, volume = size_match.groups()
+        volume = True if volume else False
+        
+        size_indicators = {
+            'b': 0,
+            'k': 1,
+            'm', 2,
+            'g', 3,
+            't', 4
+        }
+        
+        from math import pow
+        byte_multiplier = int(pow(1024, size_indicators[size_indicator]))
+        delete_target = amount * byte_multiplier
+        
+        # Calculate percentage?
+    
+    if percentage:
+        # They used a percentage. Let's check it out.
+        if percentage <= 0 or percentage > 100:
+            raise ValueError("{size} is an invalid percentage of the drive to free up".format(size=size))
+    
+    # return delete_target
+    return size
+
 ##------------------------------------------------------------------------------
 ## Program entry point.
 ##------------------------------------------------------------------------------
@@ -292,12 +335,23 @@ if __name__ == '__main__':
     parser.add_argument('-V', '--verbose', action='count')
     parser.add_argument('--skip-prompt', action='store_true')
     parser.add_argument('-l', '--log-dest')
-    parser.add_argument('-k', '--keep-after', default='-7dr')
-    parser.add_argument('-f', '--format', default='%Y-%m-%d')
+    parser.add_argument('-k', '--keep-after', default=None)
+    parser.add_argument('-d', '--date-format', default='%Y-%m-%d')
+    parser.add_argument('-f', '--freeup', default=None)
+    parser.add_argument('--delete-oldest-first', action='store_true', default=True)
+    parser.add_argument('--delete-largest-first', action='store_false', dest='delete_oldest_first')
     parser.add_argument('target', nargs='?', default=os.getcwd())
     
     # Parse the arguments.
     args = parser.parse_args()
+    
+    # print(args)
+    
+    if args.keep_after and args.freeup:
+        parser.error("You may only specify one of --keep-after and --freeup.")
+    
+    if not args.keep_after and not args.freeup:
+        args.keep_after = '-7dr'
     
     if args.help:
         usage()
@@ -328,18 +382,31 @@ if __name__ == '__main__':
     for logging_level in [x for x in logger.prompts.keys() if x <= loggers.INFO]:
         logger.set_prompt(logging_level, '')
     
-    # Get the Unix timestamp of the deletion date.
-    keep_after = date_to_unix(args.keep_after, args.format)
+    # Get the necessary information to perform cleanup. Either calculate the
+    # unix date of the time to delete before, or find the amount of space to
+    # delete off the given volume.
+    if args.keep_after:
+        free_space = None
+        keep_after = date_to_unix(args.keep_after, args.date_format)
+    elif args.freeup:
+        keep_after = None
+        free_space = volume_size_target(args.freeup, args.target)
+        
+    if keep_after:
+        print("keep_after: {}".format(keep_after))
+    if free_space:
+        print("free_space: {}".format(free_space))
+    print("delete_oldest_first: {}".format(args.delete_oldest_first))
     
     # Run it!
-    try:
-        main(
-            target     = args.target,
-            keep_after = keep_after,
-            skip_prompt = args.skip_prompt,
-            logger     = logger,
-        )
-    except:
-        # Output the exception with the error name and its message. Suppresses the stack trace.
-        logger.error("{errname}: {error}".format(errname=sys.exc_info()[0].__name__, error=sys.exc_info()[1].message))
-        sys.exit(3)
+    # try:
+    #     main(
+    #         target     = args.target,
+    #         keep_after = keep_after,
+    #         skip_prompt = args.skip_prompt,
+    #         logger     = logger,
+    #     )
+    # except:
+    #     # Output the exception with the error name and its message. Suppresses the stack trace.
+    #     logger.error("{errname}: {error}".format(errname=sys.exc_info()[0].__name__, error=sys.exc_info()[1].message))
+    #     sys.exit(3)

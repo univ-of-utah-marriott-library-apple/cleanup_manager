@@ -1,13 +1,17 @@
 import os
 
 
-def get_deletable_inventory(keep_after, target=None, folders=None, files=None, links=None):
+def get_date_based_deletable_inventory(keep_after, target=None, folders=None, files=None, links=None):
     """
     Finds all of the items within an inventory that can be deleted based on
     their last modification date.
     
-    :param target:
     :param keep_after:
+    :param target:
+    :param folders:
+    :param files:
+    :param links:
+    :return: lists of folers, files, and links to be deleted and/or unmade
     """
     if folders is None or files is None or links is None:
         if not target:
