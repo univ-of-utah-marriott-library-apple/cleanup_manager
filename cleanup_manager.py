@@ -22,12 +22,17 @@ except ImportError as e:
     raise e
 
 
-def main(target, keep_after, skip_prompt, logger):
+def main(target, keep_after, free_space, oldest_first, skip_prompt, logger):
     target = os.path.abspath(os.path.expanduser(target))
     
     folders, files, links = cleanup_management.analysis.get_inventory(target)
     
-    delete_folders, delete_files, delete_links = cleanup_management.analysis.get_date_based_deletable_inventory(keep_after=keep_after, folders=folders, files=files, links=links)
+    if keep_after is not None:
+        delete_folders, delete_files, delete_links = cleanup_management.analysis.get_date_based_deletable_inventory(keep_after=keep_after, folders=folders, files=files, links=links)
+    elif free_space and oldest_first:
+        delete_folders, delete_files, delete_links = cleanup_management.analysis.get_size_based_deletable_inventory(target_space=free_space, oldest_first=oldest_first, folders=folders, files=files, links=links)
+    else:
+        raise RuntimeError("Did not specify either --keep-after or --freeup.")
     
     if not skip_prompt:
         logger.info("These items will be deleted:")
@@ -146,10 +151,18 @@ Delete old items from a specific directory, but only at a top-level granularity.
         The date to compare file modification times to. Anything before this
         date will be removed.
         default: seven days prior to today, rounded down to midnight
-    -f format, --format format
+    -d format, --date-format format
         The date format, given as a Python datetime.datetime.strptime()-
         compatible format.
         default: '%Y-%m-%d'
+    -f size, --freeup size
+        The amount of space to attempt to free up.
+    --delete-oldest-first
+        When deleting by size, older items are deleted first to free up the
+        designated `--freeup` space.
+    --delete-largest-first
+        When deleting by size, larger items are deleted first to free up the
+        designated `--freeup` space.
     
     target
         The top-level directory to delete from within.
@@ -179,9 +192,40 @@ KEEP-AFTER DATE
     and "r" or "R" indicates that the date should be rounded back to
     the previous midnight.
     
-EXAMPLE
+Example
     To delete everything older than four days ago:
-        cleanup_management.py -k 4d
+        cleanup_manager.py -k 4d /path/to/target
+
+FREEUP SPACE
+    You can specify an amount of space to attempt to free up in the target
+    directory. This size can be specified in one of three ways:
+      1. A number of bytes to free up on the drive.
+      2. A number of bytes to have free on the drive (this is different).
+      3. A percentage representing the amount of free space you want on the
+         drive.
+    
+    These can be inputted as (for example):
+      1. 10g    - will attempt to remote 10 gigabytes of data
+      2. 10gf   - 10 gigabytes will be free after cleanup runs
+      3. 10     - 10% of the drive will be free after cleanup
+    
+    There are five supported byte modifiers to specify explicit sizes:
+      b: bytes
+      k: kilobytes - 1024 bytes
+      m: megabytes - 1024 kilobytes
+      g: gigabytes - 1024 megabytes
+      t: terabytes - 1024 gigabytes
+
+Example
+    To delete up to 15 gigabytes of data within the target directory with
+    preference given to older items:
+        cleanup_manager.py -f 15g /path/to/target
+    To attempt to have 500 megabytes free on your old hard drive with preference
+    given to larger items:
+        cleanup_manager.py -f 500mf --delete-largest-first /path/to/target
+    To clear up 30% of the drive where 'target' exists by deleting items inside
+    of 'target' (with preference to older items):
+        cleanup_manager.py -f 30 /path/to/target
 
 LINKS
     All links existing within the directory structure are checked for whether
@@ -190,7 +234,7 @@ LINKS
     the link is unmade. However, this program does not check the rest of the
     system to ensure that external links do not point inside a deleted
     directory.\
-'''.format(name='cleanup_management'))
+'''.format(name='cleanup_manager'))
 
 
 def date_to_unix(date, date_format):
@@ -295,7 +339,7 @@ def volume_size_target(size, target, logger=None):
       3. A percentage representing the amount of free space you want on the
          drive.
     
-    These can be represented as (for example):
+    These can be inputted as (for example):
       1. 10g    - will attempt to remote 10 gigabytes of data
       2. 10gf   - 10 gigabytes will be free after cleanup runs
       3. 10     - 10% of the drive will be free after cleanup
@@ -438,22 +482,18 @@ if __name__ == '__main__':
     elif args.freeup:
         keep_after = None
         free_space = volume_size_target(args.freeup, args.target, logger)
-        
-    if keep_after:
-        print("keep_after: {}".format(keep_after))
-    if free_space:
-        print("free_space: {}".format(free_space))
-    print("delete_oldest_first: {}".format(args.delete_oldest_first))
     
     # Run it!
-    # try:
-    #     main(
-    #         target     = args.target,
-    #         keep_after = keep_after,
-    #         skip_prompt = args.skip_prompt,
-    #         logger     = logger,
-    #     )
-    # except:
-    #     # Output the exception with the error name and its message. Suppresses the stack trace.
-    #     logger.error("{errname}: {error}".format(errname=sys.exc_info()[0].__name__, error=sys.exc_info()[1].message))
-    #     sys.exit(3)
+    try:
+        main(
+            target       = args.target,
+            keep_after   = keep_after,
+            free_space   = free_space,
+            oldest_first = args.delete_oldest_first,
+            skip_prompt  = args.skip_prompt,
+            logger       = logger,
+        )
+    except:
+        # Output the exception with the error name and its message. Suppresses the stack trace.
+        logger.error("{errname}: {error}".format(errname=sys.exc_info()[0].__name__, error=sys.exc_info()[1].message))
+        sys.exit(3)

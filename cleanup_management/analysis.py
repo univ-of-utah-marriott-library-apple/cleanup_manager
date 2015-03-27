@@ -70,6 +70,12 @@ def get_size_based_deletable_inventory(target_space, target=None, oldest_first=T
             raise ValueError("Must give either a target or the inventory.")
         else:
             folders, files, links = get_inventory(target)
+    else:
+        # Make copies of the inventory lists just in case the user wanted to
+        # keep the originals.
+        folders = list(folders)
+        files   = list(files)
+        links   = list(links)
     
     # Initialize lists to be returned.
     delete_folders = []
