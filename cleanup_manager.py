@@ -13,14 +13,17 @@ import time
 try:
     from management_tools import loggers
     from management_tools import fs_analysis as fsa
+    # Check for version 1.8.1
+    if not "bytes" in dir(fsa.Filesystem):
+        raise ImportError
 except ImportError as e:
-    print("You need version 1.8.0 or greater of the 'Management Tools' module to be installed first.")
+    print("You need version 1.8.1 or greater of the 'Management Tools' module to be installed first.")
     print("https://github.com/univ-of-utah-marriott-library-apple/management_tools")
     raise e
 
 
 def main(target, keep_after, skip_prompt, logger):
-    target = os.path.abspath(target)
+    target = os.path.abspath(os.path.expanduser(target))
     
     folders, files, links = cleanup_management.analysis.get_inventory(target)
     
@@ -280,47 +283,93 @@ def date_to_unix(date, date_format):
     
     return unix_time
 
-def volume_size_target(size, target):
+
+def volume_size_target(size, target, logger=None):
     """
+    Converts a size into a number of bytes to clear up on the filesystem where
+    'target' exists.
     
-    :param size:
+    The size can be given in one of three ways:
+      1. A number of bytes to free up on the drive.
+      2. A number of bytes to have free on the drive (this is different).
+      3. A percentage representing the amount of free space you want on the
+         drive.
+    
+    These can be represented as (for example):
+      1. 10g    - will attempt to remote 10 gigabytes of data
+      2. 10gf   - 10 gigabytes will be free after cleanup runs
+      3. 10     - 10% of the drive will be free after cleanup
+    
+    There are five supported byte modifiers to specify explicit sizes:
+      b: bytes
+      k: kilobytes - 1024 bytes
+      m: megabytes - 1024 kilobytes
+      g: gigabytes - 1024 megabytes
+      t: terabytes - 1024 gigabytes
+    
+    :param size: the amount to clear up on the volume where 'target' exists
+    :param target: the location in the system where cleanup will occur
+    :param logger: a Management Tools logger (if you want some things logged)
+    :return: the number of bytes that should be freed up if possible
+    :return type: int
     """
+    # Get the filesystem information for 'target'.
     volume = fsa.Filesystem(fsa.get_responsible_fs(target))
-    print("volume: {}".format(volume))
-    percentage = None
+    delete_target = None
     try:
         # Is it just the percentage?
         percentage = int(size)
+        
+        # Convert to a decimal percentage for math.
+        percentage = float(percentage) / 100.0
+        
+        # Take the ceiling of the product of the percentage with the number of
+        # blocks available.
+        from math import ceil
+        free_target = int(ceil(volume.bytes * percentage))
+        delete_target = free_target - volume.bytes_free
     except ValueError:
-        # Nope. Let's do some parsing.
-        size_match = re.match(r"^(\d+)([bkmgt])([v]?)$", size.lower())
+        # 'size' is not just a percentage. Parse it for values!
+        size_match = re.match(r"^(\d+)([bkmgt])([f]?)$", size.lower())
         if not size_match:
             raise ValueError("{size} is not a valid size-deletion target".format(size=size))
         
-        amount, size_indicator, volume = size_match.groups()
-        volume = True if volume else False
+        amount, indicator, total_free = size_match.groups()
+        total_free = True if total_free else False
+        amount     = int(amount)
         
+        # Concordance between letters and their "byte powers"!
         size_indicators = {
-            'b': 0,
-            'k': 1,
-            'm', 2,
-            'g', 3,
-            't', 4
+            'b': 0,     # bytes                      = amount * (1024^0)
+            'k': 1,     # kilobytes (1024 bytes)     = amount * (1024^1)
+            'm': 2,     # megabytes (1024 kilobytes) = amount * (1024^2)
+            'g': 3,     # gigabytes (1024 megabytes) = amount * (1024^3)
+            't': 4      # terabytes (1024 gigabytes) = amount * (1024^4)
         }
         
+        # Convert the 'amount' into a target amount of bytes to delete.
         from math import pow
-        byte_multiplier = int(pow(1024, size_indicators[size_indicator]))
-        delete_target = amount * byte_multiplier
+        byte_multiplier = int(pow(1024, size_indicators[indicator]))
+        free_target = amount * byte_multiplier
         
-        # Calculate percentage?
+        if total_free:
+            delete_target = free_target - volume.bytes_free
+        else:
+            delete_target = free_target
     
-    if percentage:
-        # They used a percentage. Let's check it out.
-        if percentage <= 0 or percentage > 100:
-            raise ValueError("{size} is an invalid percentage of the drive to free up".format(size=size))
+    # Check if anything happened. If not... problems.
+    if delete_target is None:
+        raise RuntimeError("No target deletion size could be found.")
     
-    # return delete_target
-    return size
+    # Check that the volume can actually have that much space deleted.
+    if delete_target < 0:
+        raise ValueError("Negative target deletion size encountered - is there already enough free space?")
+    if delete_target > volume.bytes:
+        if logger:
+            logger.warn("Too many bytes to delete; will delete as much as possible.")
+    
+    # Return the amount of bytes to delete.
+    return delete_target
 
 ##------------------------------------------------------------------------------
 ## Program entry point.
@@ -344,8 +393,6 @@ if __name__ == '__main__':
     
     # Parse the arguments.
     args = parser.parse_args()
-    
-    # print(args)
     
     if args.keep_after and args.freeup:
         parser.error("You may only specify one of --keep-after and --freeup.")
@@ -372,7 +419,7 @@ if __name__ == '__main__':
     
     # Build the logger.
     logger = loggers.get_logger(
-        name  = 'cleanup_management',
+        name  = 'cleanup_manager',
         log   = not args.no_log,
         level = log_level,
         path  = args.log_dest
@@ -390,7 +437,7 @@ if __name__ == '__main__':
         keep_after = date_to_unix(args.keep_after, args.date_format)
     elif args.freeup:
         keep_after = None
-        free_space = volume_size_target(args.freeup, args.target)
+        free_space = volume_size_target(args.freeup, args.target, logger)
         
     if keep_after:
         print("keep_after: {}".format(keep_after))
