@@ -13,7 +13,7 @@ import time
 try:
     from management_tools import loggers
     from management_tools import fs_analysis as fsa
-    # Check for version 1.8.1
+    # Check for MT version 1.8.1
     if not "bytes" in dir(fsa.Filesystem):
         raise ImportError
 except ImportError as e:

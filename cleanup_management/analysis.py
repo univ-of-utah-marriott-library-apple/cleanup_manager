@@ -6,11 +6,12 @@ def get_date_based_deletable_inventory(keep_after, target=None, folders=None, fi
     Finds all of the items within an inventory that can be deleted based on
     their last modification date.
     
-    :param keep_after:
-    :param target:
-    :param folders:
-    :param files:
-    :param links:
+    :param keep_after: a unix timestamp; any files or directories with a last
+                       modification time after this will be removed
+    :param target: the directory to clean out
+    :param folders: an inventory of the folders (see get_inventory())
+    :param files: an inventory of the files (see get_inventory())
+    :param links: an inventory of the links (see get_inventory())
     :return: lists of folers, files, and links to be deleted and/or unmade
     """
     if folders is None or files is None or links is None:
@@ -23,6 +24,8 @@ def get_date_based_deletable_inventory(keep_after, target=None, folders=None, fi
     # If the item's score is above the threshold value, it will be deleted.
     # Folder and file lists are assumed to contain tuples as:
     #     (path, age, size)
+    # Effectively, for each folder/file: if that item has a timestamp that is
+    # less than the 'keep_after' value, it gets added to the list.
     delete_folders = [folder[0] for folder in folders if folder[1] < keep_after]
     delete_files   = [file[0] for file in files if file[1] < keep_after]
     
@@ -31,10 +34,145 @@ def get_date_based_deletable_inventory(keep_after, target=None, folders=None, fi
     #     (link location, target location, inside)
     delete_links   = []
     for link in links:
+        # If the link points inside the 'target' directory and the target of the
+        # link will be deleted during cleanup, then remove the link.
         if link[2] and (link[1] in delete_folders or link[1] in delete_files):
             delete_links.append(link[0])
         else:
             for folder in delete_folders:
+                # If the link exists inside of or points into a folder that is
+                # going to be deleted, then remove the link.
+                if link[0].startswith(folder) or link[1].startswith(folder):
+                    delete_links.append(link[0])
+                    break
+    
+    # Return the deletable inventory.
+    return delete_folders, delete_files, delete_links
+
+
+def get_size_based_deletable_inventory(target_space, target=None, oldest_first=True, folders=None, files=None, links=None):
+    """
+    Finds all of the items within an inventory that can be deleted based on a
+    given target amount of space to attempt to free up.
+    
+    :param target_space: the amount of space to attempt to clean up
+    :type  target_space: int
+    :param target: the directory to clean out
+    :param oldest_first: whether to prefer deleting old itmes first; if set to
+                         False, then largest items will be deleted first
+    :param folders: an inventory of the folders (see get_inventory())
+    :param files: an inventory of the files (see get_inventory())
+    :param links: an inventory of the links (see get_inventory())
+    :return: list of folders, files, and links to be deleted and/or unmade
+    """
+    if folders is None or files is None or links is None:
+        if not target:
+            raise ValueError("Must give either a target or the inventory.")
+        else:
+            folders, files, links = get_inventory(target)
+    
+    # Initialize lists to be returned.
+    delete_folders = []
+    delete_files   = []
+    delete_links   = []
+    
+    # Set the index key based on oldest/largest preference.
+    if oldest_first:
+        key = 1
+    else:
+        key = 2
+    # Initialize an accumulated_size counter to keep track of how much stuff is
+    # going to be deleted.
+    accumulated_size = 0
+    
+    # Build up the deletion lists.
+    while accumulated_size <= target_space:
+        # If we have folders left but no files, just look at the maximum value
+        # for the folders.
+        if folders and not files:
+            print("Folders not files")
+            folder = max(folders, key=lambda folder: folder[key])
+            print("  folder = {}".format(folder))
+            # If that folder's size won't put us over the 'total_size' alotment,
+            # add it to the list of folders to be deleted.
+            print("  target_space - accumulated_size = {}".format(target_space - accumulated_size))
+            if folder[2] <= target_space - accumulated_size:
+                print("  appending")
+                delete_folders.append(folder[0])
+                accumulated_size += folder[2]
+            # In any case, remove the folder from the list of folders.
+            # This way we can keep iterating over the list and not get stuck on
+            # one value.
+            folders.remove(folder)
+            print("  removed")
+        
+        # Files but no folders.
+        elif files and not folders:
+            print("Files not folders")
+            file = max(files, key=lambda file: file[key])
+            print("  file = {}".format(file))
+            # If the file's size won't put us over the 'total_size' alotment,
+            # add it do the list of files to be deleted.
+            print("  target_space - accumulated_size = {}".format(target_space - accumulated_size))
+            if file[2] <= target_space - accumulated_size:
+                print("  appending")
+                delete_files.append(file[0])
+                accumulated_size += file[2]
+            # Even if the file is too big to be deleted, remove it from the list
+            # of files so we don't have to see it again.
+            files.remove(file)
+            print("  removed")
+        
+        # Maybe we have both! That's kind of tricky.
+        elif files and folders:
+            print("Files and folders")
+            # Take the maximum value from each of 'folders' and 'files'.
+            folder = max(folders, key=lambda folder: folder[key])
+            file   = max(files, key=lambda file: file[key])
+            # If the folder is older/larger than the file...
+            if folder[key] >= file[key]:
+                print("  folder = {}".format(folder))
+                # Add the folder to the list of folders to be deleted.
+                print("  target_space - accumulated_size = {}".format(target_space - accumulated_size))
+                if folder[2] <= target_space - accumulated_size:
+                    print("  appending")
+                    delete_folders.append(folder[0])
+                    accumulated_size += folder[2]
+                # Remove the folder from the list of folders.
+                folders.remove(folder)
+                print("  removed")
+            # But if the file is older/larger...
+            else:
+                print("  file = {}".format(file))
+                # Add the file to the list of files to be deleted.
+                print("  target_space - accumulated_size = {}".format(target_space - accumulated_size))
+                if file[2] <= target_space - accumulated_size:
+                    print("  appending")
+                    delete_files.append(file[0])
+                    accumulated_size += file[2]
+                # Remove the file from the list of files.
+                files.remove(file)
+                print("  removed")
+        
+        # We don't have any folders or files left, so quit the loop.
+        # If this gets triggered, it means that there weren't enough items  in
+        # the target directory to fill up the 'total_size' alotment.
+        else:
+            print("Not files and not folders")
+            break
+    
+    # Now handle links. This is a bit trickier.
+    # Link array is assumed to contain tuples as:
+    #     (link location, target location, inside)
+    for link in links:
+        # If the link points inside the 'target' directory and the target of the
+        # link will be deleted during cleanup, then remove the link.
+        if link[2] and (link[1] in delete_folders or link[1] in delete_files):
+            delete_links.append(link[0])
+        else:
+            for folder in delete_folders:
+                # If the link exists inside of or points into a folder that is
+                # going to be deleted, then remove the link.
                 if link[0].startswith(folder) or link[1].startswith(folder):
                     delete_links.append(link[0])
                     break
@@ -51,7 +189,7 @@ def get_inventory(target):
     Folder and file lists are full of tuples as:
         (folder/file path, modification timestamp, size)
     where:
-        folder/file path:       the patht to the object
+        folder/file path:       the path to the object
         modification timestamp: the Unix timestamp of the last modification
         size:                   the size of the object
     Folder sizes are just the sum of their content, and folder modification
