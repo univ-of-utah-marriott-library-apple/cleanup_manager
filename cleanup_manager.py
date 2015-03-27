@@ -23,17 +23,21 @@ except ImportError as e:
 
 
 def main(target, keep_after, free_space, oldest_first, skip_prompt, logger):
+    # Get an absolute reference to the target path.
     target = os.path.abspath(os.path.expanduser(target))
     
+    # Obtain the initial inventory.
     folders, files, links = cleanup_management.analysis.get_inventory(target)
     
+    # Build the appropriate deletion inventory.
     if keep_after is not None:
         delete_folders, delete_files, delete_links = cleanup_management.analysis.get_date_based_deletable_inventory(keep_after=keep_after, folders=folders, files=files, links=links)
     elif free_space and oldest_first:
-        delete_folders, delete_files, delete_links = cleanup_management.analysis.get_size_based_deletable_inventory(target_space=free_space, oldest_first=oldest_first, folders=folders, files=files, links=links)
+        delete_folders, delete_files, delete_links, deleted_space = cleanup_management.analysis.get_size_based_deletable_inventory(target_space=free_space, oldest_first=oldest_first, folders=folders, files=files, links=links)
     else:
         raise RuntimeError("Did not specify either --keep-after or --freeup.")
     
+    # Inform the user about stuff (if they wanted it).
     if not skip_prompt:
         logger.info("These items will be deleted:")
         
@@ -55,7 +59,10 @@ def main(target, keep_after, free_space, oldest_first, skip_prompt, logger):
         if not query_yes_no("Proceed with cleanup?"):
             sys.exit(7)
     
-    logger.info("Deleting contents recursively older than {} from {}".format(datetime.datetime.fromtimestamp(keep_after), target))
+    if keep_after:
+        logger.info("Deleting contents recursively older than {} from {}".format(datetime.datetime.fromtimestamp(keep_after), target))
+    else:
+        logger.info("Deleting {} bytes of data from {}".format(deleted_space, target))
     
     # Remove links first.
     logger.info("Removing bad links:")
@@ -118,7 +125,7 @@ def version():
     """
     :return: The version information for this program.
     """
-    return ("{name}, version {version}\n".format(name='cleanup_management', version=cleanup_management.__version__))
+    return ("{name}, version {version}\n".format(name='cleanup_manager', version=cleanup_management.__version__))
 
 
 def usage():

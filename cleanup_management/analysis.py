@@ -63,7 +63,8 @@ def get_size_based_deletable_inventory(target_space, target=None, oldest_first=T
     :param folders: an inventory of the folders (see get_inventory())
     :param files: an inventory of the files (see get_inventory())
     :param links: an inventory of the links (see get_inventory())
-    :return: list of folders, files, and links to be deleted and/or unmade
+    :return: list of folders, files, and links to be deleted and/or unmade and
+             the total amount of stuff deleted (in bytes)
     """
     if folders is None or files is None or links is None:
         if not target:
@@ -183,8 +184,8 @@ def get_size_based_deletable_inventory(target_space, target=None, oldest_first=T
                     delete_links.append(link[0])
                     break
     
-    # Return the deletable inventory.
-    return delete_folders, delete_files, delete_links
+    # Return the deletable inventory and accumulated size.
+    return delete_folders, delete_files, delete_links, accumulated_size
 
 
 def get_inventory(target):
