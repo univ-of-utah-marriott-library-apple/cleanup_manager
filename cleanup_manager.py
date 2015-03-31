@@ -32,7 +32,7 @@ def main(target, keep_after, free_space, oldest_first, skip_prompt, logger):
     # Build the appropriate deletion inventory.
     if keep_after is not None:
         delete_folders, delete_files, delete_links = cleanup_management.analysis.get_date_based_deletable_inventory(keep_after=keep_after, folders=folders, files=files, links=links)
-    elif free_space and oldest_first:
+    elif free_space is not None and oldest_first is not None:
         delete_folders, delete_files, delete_links, deleted_space = cleanup_management.analysis.get_size_based_deletable_inventory(target_space=free_space, oldest_first=oldest_first, folders=folders, files=files, links=links)
     else:
         raise RuntimeError("Did not specify either --keep-after or --freeup.")
@@ -167,6 +167,7 @@ Delete old items from a specific directory, but only at a top-level granularity.
     --delete-oldest-first
         When deleting by size, older items are deleted first to free up the
         designated `--freeup` space.
+        This is the default action when using `--freeup`.
     --delete-largest-first
         When deleting by size, larger items are deleted first to free up the
         designated `--freeup` space.
