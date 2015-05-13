@@ -97,75 +97,65 @@ def get_size_based_deletable_inventory(target_space, target=None, oldest_first=T
         # If we have folders left but no files, just look at the maximum value
         # for the folders.
         if folders and not files:
-            print("Folders not files")
-            folder = max(folders, key=lambda folder: folder[key])
-            print("  folder = {}".format(folder))
+            if oldest_first:
+                folder = min(folders, key=lambda folder: folder[1])
+            else:
+                folder = max(folders, key=lambda folder: folder[2])
             # If that folder's size won't put us over the 'total_size' alotment,
             # add it to the list of folders to be deleted.
-            print("  target_space - accumulated_size = {}".format(target_space - accumulated_size))
             if folder[2] <= target_space - accumulated_size:
-                print("  appending")
                 delete_folders.append(folder[0])
                 accumulated_size += folder[2]
             # In any case, remove the folder from the list of folders.
             # This way we can keep iterating over the list and not get stuck on
             # one value.
             folders.remove(folder)
-            print("  removed")
         
         # Files but no folders.
         elif files and not folders:
-            print("Files not folders")
-            file = max(files, key=lambda file: file[key])
-            print("  file = {}".format(file))
+            if oldest_first:
+                file = min(files, key=lambda file: file[1])
+            else:
+                file = max(files, key=lambda file: file[2])
             # If the file's size won't put us over the 'total_size' alotment,
             # add it do the list of files to be deleted.
-            print("  target_space - accumulated_size = {}".format(target_space - accumulated_size))
             if file[2] <= target_space - accumulated_size:
-                print("  appending")
                 delete_files.append(file[0])
                 accumulated_size += file[2]
             # Even if the file is too big to be deleted, remove it from the list
             # of files so we don't have to see it again.
             files.remove(file)
-            print("  removed")
         
         # Maybe we have both! That's kind of tricky.
         elif files and folders:
-            print("Files and folders")
             # Take the maximum value from each of 'folders' and 'files'.
-            folder = max(folders, key=lambda folder: folder[key])
-            file   = max(files, key=lambda file: file[key])
+            if oldest_first:
+                folder = min(folders, key=lambda folder: folder[1])
+                file   = min(files, key=lambda file: file[1])
+            else:
+                folder = max(folders, key=lambda folder: folder[2])
+                file   = max(files, key=lambda file: file[2])
             # If the folder is older/larger than the file...
-            if folder[key] >= file[key]:
-                print("  folder = {}".format(folder))
-                # Add the folder to the list of folders to be deleted.
-                print("  target_space - accumulated_size = {}".format(target_space - accumulated_size))
-                if folder[2] <= target_space - accumulated_size:
-                    print("  appending")
-                    delete_folders.append(folder[0])
-                    accumulated_size += folder[2]
-                # Remove the folder from the list of folders.
-                folders.remove(folder)
-                print("  removed")
+            if (oldest_first and folder[1] <= file[1]) or (not oldest_first and folder[2] >= file[2]):
+                    # Add the folder to the list of folders to be deleted.
+                    if folder[2] <= target_space - accumulated_size:
+                        delete_folders.append(folder[0])
+                        accumulated_size += folder[2]
+                    # Remove the folder from the list of folders.
+                    folders.remove(folder)
             # But if the file is older/larger...
             else:
-                print("  file = {}".format(file))
-                # Add the file to the list of files to be deleted.
-                print("  target_space - accumulated_size = {}".format(target_space - accumulated_size))
-                if file[2] <= target_space - accumulated_size:
-                    print("  appending")
-                    delete_files.append(file[0])
-                    accumulated_size += file[2]
-                # Remove the file from the list of files.
-                files.remove(file)
-                print("  removed")
+                    # Add the file to the list of files to be deleted.
+                    if file[2] <= target_space - accumulated_size:
+                        delete_files.append(file[0])
+                        accumulated_size += file[2]
+                    # Remove the file from the list of files.
+                    files.remove(file)
         
         # We don't have any folders or files left, so quit the loop.
-        # If this gets triggered, it means that there weren't enough items  in
+        # If this gets triggered, it means that there weren't enough items in
         # the target directory to fill up the 'total_size' alotment.
         else:
-            print("Not files and not folders")
             break
     
     # Now handle links. This is a bit trickier.
