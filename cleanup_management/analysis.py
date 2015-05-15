@@ -266,16 +266,17 @@ def get_inventory(target):
             
             for file in subfiles:
                 file = os.path.join(path, file)
-                # If the modification time is more recent than that of the top
-                # directory, overwrite the directory's age with the file's.
-                file_age = os.path.getmtime(file)
-                if file_age > age:
-                    age = file_age
+                file_age = 0
                 # Is the file a link?
                 if os.path.islink(file):
                     links.append(file)
                 else:
                     size += os.path.getsize(file)
+                    file_age = os.path.getmtime(file)
+                # If the modification time is more recent than that of the top
+                # directory, overwrite the directory's age with the file's.
+                if file_age > age:
+                    age = file_age
         
         folders[i] = (folder, age, size)
         
