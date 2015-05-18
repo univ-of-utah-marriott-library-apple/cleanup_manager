@@ -1,7 +1,7 @@
 import analysis
 import cleanup
 
-__version__ = '1.1.2'
+__version__ = '1.2.0'
 __all__     = ['analysis', 'cleanup']
 
 if __name__ == "__main__":

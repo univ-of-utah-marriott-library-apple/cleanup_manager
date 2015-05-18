@@ -1,13 +1,14 @@
 import os
 
 
-def get_date_based_deletable_inventory(keep_after, target=None, folders=None, files=None, links=None):
+def get_date_based_deletable_inventory(keep_after, logger, target=None, folders=None, files=None, links=None):
     """
     Finds all of the items within an inventory that can be deleted based on
     their last modification date.
     
     :param keep_after: a unix timestamp; any files or directories with a last
                        modification time after this will be removed
+    :param logger: a Management Tools logger object
     :param target: the directory to clean out
     :param folders: an inventory of the folders (see get_inventory())
     :param files: an inventory of the files (see get_inventory())
@@ -18,7 +19,15 @@ def get_date_based_deletable_inventory(keep_after, target=None, folders=None, fi
         if not target:
             raise ValueError("Must give either a target or the inventory.")
         else:
-            folders, files, links = get_inventory(target)
+            folders, files, links = get_inventory(target, logger)
+    else:
+        # Make copies of the inventory lists just in case the user wanted to
+        # keep the originals.
+        folders = list(folders)
+        files   = list(files)
+        links   = list(links)
+    
+    logger.verbose("Getting date-based deletable inventory:")
     
     # Find the folders and files that need to be deleted.
     # If the item's score is above the threshold value, it will be deleted.
@@ -46,16 +55,25 @@ def get_date_based_deletable_inventory(keep_after, target=None, folders=None, fi
                     delete_links.append(link[0])
                     break
     
+    # Print out lots of fun information if it's warranted.
+    for folder in delete_folders:
+        logger.debug("    Set to remove folder: {}".format(folder))
+    for file in delete_files:
+        logger.debug("    Set to remove file: {}".format(file))
+    for link in delete_links:
+        logger.debug("    Set to remove link: {}".format(link))
+    
     # Return the deletable inventory.
     return delete_folders, delete_files, delete_links
 
 
-def get_size_based_deletable_inventory(target_space, target=None, oldest_first=True, folders=None, files=None, links=None):
+def get_size_based_deletable_inventory(target_space, logger, target=None, oldest_first=True, folders=None, files=None, links=None):
     """
     Finds all of the items within an inventory that can be deleted based on a
     given target amount of space to attempt to free up.
     
     :param target_space: the amount of space to attempt to clean up
+    :param logger: a Management Tools logger object
     :type  target_space: int
     :param target: the directory to clean out
     :param oldest_first: whether to prefer deleting old itmes first; if set to
@@ -70,7 +88,7 @@ def get_size_based_deletable_inventory(target_space, target=None, oldest_first=T
         if not target:
             raise ValueError("Must give either a target or the inventory.")
         else:
-            folders, files, links = get_inventory(target)
+            folders, files, links = get_inventory(target, logger)
     else:
         # Make copies of the inventory lists just in case the user wanted to
         # keep the originals.
@@ -78,22 +96,26 @@ def get_size_based_deletable_inventory(target_space, target=None, oldest_first=T
         files   = list(files)
         links   = list(links)
     
+    logger.verbose("Getting size-based deletable inventory:")
+    
     # Initialize lists to be returned.
     delete_folders = []
     delete_files   = []
     delete_links   = []
     
-    # Set the index key based on oldest/largest preference.
-    if oldest_first:
-        key = 1
-    else:
-        key = 2
+    # # Set the index key based on oldest/largest preference.
+    # if oldest_first:
+    #     key = 1
+    # else:
+    #     key = 2
     # Initialize an accumulated_size counter to keep track of how much stuff is
     # going to be deleted.
     accumulated_size = 0
     
     # Build up the deletion lists.
     while accumulated_size <= target_space:
+        logger.verbose("  target_space     = {}".format(target_space))
+        logger.verbose("  accumulated_size = {}".format(accumulated_size))
         # If we have folders left but no files, just look at the maximum value
         # for the folders.
         if folders and not files:
@@ -101,11 +123,14 @@ def get_size_based_deletable_inventory(target_space, target=None, oldest_first=T
                 folder = min(folders, key=lambda folder: folder[1])
             else:
                 folder = max(folders, key=lambda folder: folder[2])
+            logger.verbose("    folder: {}".format(folder))
+            logger.verbose("      age: {}".format(folder[2]))
             # If that folder's size won't put us over the 'total_size' alotment,
             # add it to the list of folders to be deleted.
             if folder[2] <= target_space - accumulated_size:
                 delete_folders.append(folder[0])
                 accumulated_size += folder[2]
+                logger.verobse("      deleting")
             # In any case, remove the folder from the list of folders.
             # This way we can keep iterating over the list and not get stuck on
             # one value.
@@ -117,11 +142,14 @@ def get_size_based_deletable_inventory(target_space, target=None, oldest_first=T
                 file = min(files, key=lambda file: file[1])
             else:
                 file = max(files, key=lambda file: file[2])
+            logger.verbose("    file: {}".format(file))
+            logger.verbose("      age: {}".format(file[2]))
             # If the file's size won't put us over the 'total_size' alotment,
             # add it do the list of files to be deleted.
             if file[2] <= target_space - accumulated_size:
                 delete_files.append(file[0])
                 accumulated_size += file[2]
+                logger.verobse("      deleting")
             # Even if the file is too big to be deleted, remove it from the list
             # of files so we don't have to see it again.
             files.remove(file)
@@ -135,22 +163,30 @@ def get_size_based_deletable_inventory(target_space, target=None, oldest_first=T
             else:
                 folder = max(folders, key=lambda folder: folder[2])
                 file   = max(files, key=lambda file: file[2])
+            logger.verbose("    folder: {}".format(folder))
+            logger.verbose("      age: {}".format(folder[2]))
+            logger.verbose("    v file: {}".format(file))
+            logger.verbose("      age: {}".format(file[2]))
             # If the folder is older/larger than the file...
             if (oldest_first and folder[1] <= file[1]) or (not oldest_first and folder[2] >= file[2]):
-                    # Add the folder to the list of folders to be deleted.
-                    if folder[2] <= target_space - accumulated_size:
-                        delete_folders.append(folder[0])
-                        accumulated_size += folder[2]
-                    # Remove the folder from the list of folders.
-                    folders.remove(folder)
+                logger.verbose("    folder preferred")
+                # Add the folder to the list of folders to be deleted.
+                if folder[2] <= target_space - accumulated_size:
+                    delete_folders.append(folder[0])
+                    accumulated_size += folder[2]
+                    logger.verobse("      deleting folder")
+                # Remove the folder from the list of folders.
+                folders.remove(folder)
             # But if the file is older/larger...
             else:
-                    # Add the file to the list of files to be deleted.
-                    if file[2] <= target_space - accumulated_size:
-                        delete_files.append(file[0])
-                        accumulated_size += file[2]
-                    # Remove the file from the list of files.
-                    files.remove(file)
+                logger.verbose("    file preferred")
+                # Add the file to the list of files to be deleted.
+                if file[2] <= target_space - accumulated_size:
+                    delete_files.append(file[0])
+                    accumulated_size += file[2]
+                    logger.verobse("      deleting file")
+                # Remove the file from the list of files.
+                files.remove(file)
         
         # We don't have any folders or files left, so quit the loop.
         # If this gets triggered, it means that there weren't enough items in
@@ -174,11 +210,19 @@ def get_size_based_deletable_inventory(target_space, target=None, oldest_first=T
                     delete_links.append(link[0])
                     break
     
+    # Print out lots of fun information if it's warranted.
+    for folder in delete_folders:
+        logger.debug("    Set to remove folder: {}".format(folder))
+    for file in delete_files:
+        logger.debug("    Set to remove file: {}".format(file))
+    for link in delete_links:
+        logger.debug("    Set to remove link: {}".format(link))
+    
     # Return the deletable inventory and accumulated size.
     return delete_folders, delete_files, delete_links, accumulated_size
 
 
-def get_inventory(target):
+def get_inventory(target, logger):
     """
     Given a target directory, finds all subitems within that directory and
     stores them in separate lists, ie folders, files, and links.
@@ -201,11 +245,14 @@ def get_inventory(target):
         internal:    whether the target is in this inventory
     
     :param target: directory to search for inventory
+    :param logger: a Management Tools logger object
     :return: a tuple containing lists containing tuples describing the contents
              as (folders, files, links)
     """
     if not os.path.isdir(target):
         raise ValueError("The target must be a valid, existing directory.")
+    
+    logger.verbose("Getting top-level inventory:")
     
     ##--------------------------------------------------------------------------
     ## Get top-level directory listings.
@@ -222,15 +269,19 @@ def get_inventory(target):
             folder = os.path.join(path, folder)
             if os.path.islink(folder):
                 links.append(folder)
+                logger.verbose("    Found link: {}".format(folder))
             else:
                 folders.append(folder)
+                logger.verbose("    Found folder: {}".format(folder))
         
         for file in subfiles:
             file = os.path.join(path, file)
             if os.path.islink(file):
                 links.append(file)
+                logger.verbose("    Found link: {}".format(file))
             else:
                 files.append(file)
+                logger.verbose("    Found file: {}".format(file))
         
         # Prevent recursion to reduce time (we don't need everything indexed).
         break
