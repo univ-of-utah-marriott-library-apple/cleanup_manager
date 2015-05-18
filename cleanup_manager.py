@@ -27,13 +27,13 @@ def main(target, keep_after, free_space, oldest_first, skip_prompt, logger):
     target = os.path.abspath(os.path.expanduser(target))
     
     # Obtain the initial inventory.
-    folders, files, links = cleanup_management.analysis.get_inventory(target)
+    folders, files, links = cleanup_management.analysis.get_inventory(target, logger)
     
     # Build the appropriate deletion inventory.
     if keep_after is not None:
-        delete_folders, delete_files, delete_links = cleanup_management.analysis.get_date_based_deletable_inventory(keep_after=keep_after, folders=folders, files=files, links=links)
+        delete_folders, delete_files, delete_links = cleanup_management.analysis.get_date_based_deletable_inventory(keep_after=keep_after, logger=logger, folders=folders, files=files, links=links)
     elif free_space is not None and oldest_first is not None:
-        delete_folders, delete_files, delete_links, deleted_space = cleanup_management.analysis.get_size_based_deletable_inventory(target_space=free_space, oldest_first=oldest_first, folders=folders, files=files, links=links)
+        delete_folders, delete_files, delete_links, deleted_space = cleanup_management.analysis.get_size_based_deletable_inventory(target_space=free_space, logger=logger, oldest_first=oldest_first, folders=folders, files=files, links=links)
     else:
         raise RuntimeError("Did not specify either --keep-after or --freeup.")
     
@@ -71,7 +71,7 @@ def main(target, keep_after, free_space, oldest_first, skip_prompt, logger):
     else:
         for link in delete_links:
             logger.verbose("    {}".format(link))
-        cleanup_management.cleanup.delete_links(delete_links)
+        cleanup_management.cleanup.delete_links(delete_links, logger)
         logger.debug("Bad links removed.")
     
     # Then delete files.
@@ -81,7 +81,7 @@ def main(target, keep_after, free_space, oldest_first, skip_prompt, logger):
     else:
         for file in delete_files:
             logger.verbose("    {}".format(file))
-        cleanup_management.cleanup.delete_files(delete_files)
+        cleanup_management.cleanup.delete_files(delete_files, logger)
         logger.debug("Files removed.")
     
     # And then delete folders.
@@ -91,7 +91,7 @@ def main(target, keep_after, free_space, oldest_first, skip_prompt, logger):
     else:
         for folder in delete_folders:
             logger.verbose("    {}".format(folder))
-        cleanup_management.cleanup.delete_folders(delete_folders)
+        cleanup_management.cleanup.delete_folders(delete_folders, logger)
         logger.debug("Folders removed.")
     
     logger.info("Cleanup complete.")
@@ -503,5 +503,5 @@ if __name__ == '__main__':
         )
     except:
         # Output the exception with the error name and its message. Suppresses the stack trace.
-        logger.error("{errname}: {error}".format(errname=sys.exc_info()[0].__name__, error=sys.exc_info()[1].message))
+        logger.error("{errname}: {error}".format(errname=sys.exc_info()[0].__name__, error=' '.join(sys.exc_info()[1])))
         sys.exit(3)
