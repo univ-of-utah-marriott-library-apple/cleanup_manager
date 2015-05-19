@@ -53,6 +53,7 @@ $ cleanup_manager.py [-hvnV] [-l log] [-k date] [-f format] target
 | `-f size`, `--freeup size`            | The amount of space to attempt to free up.                                    |
 | `--delete-oldest-first`               | When deleting by size, older items are deleted first. This is the default.    |
 | `--delete-largest-first`              | When deleting by size, larger items are deleted first.                        |
+| `--overflow`                          | Allows the script to delete more than just the size specified to hit target.  |
 
 `target` is a path to a directory that you want to clean up.
 
@@ -93,6 +94,8 @@ This is a short, reverse-chronological summary of the updates to this project.
 
 | Date       | Version   | Update Description                                                           |
 |------------|:---------:|------------------------------------------------------------------------------|
+| 2015-05-19 | 1.3.0     | New `--overflow` flag ensures specified disk space will be cleared.          |
+| 2015-05-18 | 1.2.0     | Added increased verbosity availability via more `-V` flags.                  |
 | 2015-03-31 | 1.1.1     | Amended logic to handle combinations of size- and date-based deletions.      |
 | 2015-03-27 | 1.1.0     | Proper release with size-based deleting of things.                           |
 | 2015-03-27 | 1.1.0pre4 | Script actually handles size-based options properly. Updated in-line docs.   |
