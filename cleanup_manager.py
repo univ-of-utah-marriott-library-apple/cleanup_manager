@@ -22,7 +22,7 @@ except ImportError as e:
     raise e
 
 
-def main(target, keep_after, free_space, oldest_first, skip_prompt, logger):
+def main(target, keep_after, free_space, oldest_first, skip_prompt, overflow, logger):
     # Get an absolute reference to the target path.
     target = os.path.abspath(os.path.expanduser(target))
     
@@ -33,7 +33,7 @@ def main(target, keep_after, free_space, oldest_first, skip_prompt, logger):
     if keep_after is not None:
         delete_folders, delete_files, delete_links = cleanup_management.analysis.get_date_based_deletable_inventory(keep_after=keep_after, logger=logger, folders=folders, files=files, links=links)
     elif free_space is not None and oldest_first is not None:
-        delete_folders, delete_files, delete_links, deleted_space = cleanup_management.analysis.get_size_based_deletable_inventory(target_space=free_space, logger=logger, oldest_first=oldest_first, folders=folders, files=files, links=links)
+        delete_folders, delete_files, delete_links, deleted_space = cleanup_management.analysis.get_size_based_deletable_inventory(target_space=free_space, logger=logger, oldest_first=oldest_first, overflow=overflow, folders=folders, files=files, links=links)
     else:
         raise RuntimeError("Did not specify either --keep-after or --freeup.")
     
@@ -171,6 +171,12 @@ Delete old items from a specific directory, but only at a top-level granularity.
     --delete-largest-first
         When deleting by size, larger items are deleted first to free up the
         designated `--freeup` space.
+    --overflow
+        When deleting by size, this flag will ensure that at the very least the
+        amount designated will be deleted. (The default action is to delete up
+        to - but not more than - the amount.) This is useful when your top-level
+        directory only contains items that are greater in size than the target
+        free space amount.
     
     target
         The top-level directory to delete from within.
@@ -441,6 +447,7 @@ if __name__ == '__main__':
     parser.add_argument('-f', '--freeup', default=None)
     parser.add_argument('--delete-oldest-first', action='store_true', default=True)
     parser.add_argument('--delete-largest-first', action='store_false', dest='delete_oldest_first')
+    parser.add_argument('--overflow', action='store_true')
     parser.add_argument('target', nargs='?', default=os.getcwd())
     
     # Parse the arguments.
@@ -499,9 +506,10 @@ if __name__ == '__main__':
             free_space   = free_space,
             oldest_first = args.delete_oldest_first,
             skip_prompt  = args.skip_prompt,
+            overflow     = args.overflow,
             logger       = logger,
         )
     except:
         # Output the exception with the error name and its message. Suppresses the stack trace.
         logger.error("{errname}: {error}".format(errname=sys.exc_info()[0].__name__, error=' '.join(sys.exc_info()[1])))
-        sys.exit(3)
+        raise

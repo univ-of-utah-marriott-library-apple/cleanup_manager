@@ -67,7 +67,7 @@ def get_date_based_deletable_inventory(keep_after, logger, target=None, folders=
     return delete_folders, delete_files, delete_links
 
 
-def get_size_based_deletable_inventory(target_space, logger, target=None, oldest_first=True, folders=None, files=None, links=None):
+def get_size_based_deletable_inventory(target_space, logger, target=None, oldest_first=True, overflow=False, folders=None, files=None, links=None):
     """
     Finds all of the items within an inventory that can be deleted based on a
     given target amount of space to attempt to free up.
@@ -113,7 +113,7 @@ def get_size_based_deletable_inventory(target_space, logger, target=None, oldest
     accumulated_size = 0
     
     # Build up the deletion lists.
-    while accumulated_size <= target_space:
+    while accumulated_size < target_space:
         logger.verbose("  target_space     = {}".format(target_space))
         logger.verbose("  accumulated_size = {}".format(accumulated_size))
         # If we have folders left but no files, just look at the maximum value
@@ -127,10 +127,10 @@ def get_size_based_deletable_inventory(target_space, logger, target=None, oldest
             logger.verbose("      age: {}".format(folder[2]))
             # If that folder's size won't put us over the 'total_size' alotment,
             # add it to the list of folders to be deleted.
-            if folder[2] <= target_space - accumulated_size:
+            if overflow or folder[2] <= target_space - accumulated_size:
                 delete_folders.append(folder[0])
                 accumulated_size += folder[2]
-                logger.verobse("      deleting")
+                logger.verbose("      deleting")
             # In any case, remove the folder from the list of folders.
             # This way we can keep iterating over the list and not get stuck on
             # one value.
@@ -146,10 +146,10 @@ def get_size_based_deletable_inventory(target_space, logger, target=None, oldest
             logger.verbose("      age: {}".format(file[2]))
             # If the file's size won't put us over the 'total_size' alotment,
             # add it do the list of files to be deleted.
-            if file[2] <= target_space - accumulated_size:
+            if overflow or file[2] <= target_space - accumulated_size:
                 delete_files.append(file[0])
                 accumulated_size += file[2]
-                logger.verobse("      deleting")
+                logger.verbose("      deleting")
             # Even if the file is too big to be deleted, remove it from the list
             # of files so we don't have to see it again.
             files.remove(file)
@@ -171,20 +171,20 @@ def get_size_based_deletable_inventory(target_space, logger, target=None, oldest
             if (oldest_first and folder[1] <= file[1]) or (not oldest_first and folder[2] >= file[2]):
                 logger.verbose("    folder preferred")
                 # Add the folder to the list of folders to be deleted.
-                if folder[2] <= target_space - accumulated_size:
+                if overflow or folder[2] <= target_space - accumulated_size:
                     delete_folders.append(folder[0])
                     accumulated_size += folder[2]
-                    logger.verobse("      deleting folder")
+                    logger.verbose("      deleting folder")
                 # Remove the folder from the list of folders.
                 folders.remove(folder)
             # But if the file is older/larger...
             else:
                 logger.verbose("    file preferred")
                 # Add the file to the list of files to be deleted.
-                if file[2] <= target_space - accumulated_size:
+                if overflow or file[2] <= target_space - accumulated_size:
                     delete_files.append(file[0])
                     accumulated_size += file[2]
-                    logger.verobse("      deleting file")
+                    logger.verbose("      deleting file")
                 # Remove the file from the list of files.
                 files.remove(file)
         
