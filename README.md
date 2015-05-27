@@ -71,7 +71,7 @@ To attempt to reach 500 megabytes free on the drive with preference given to lar
 $ cleanup_manager.py -f 500mf --delete-largest-first /path/to/target
 ```
 
-To clear up 30% of the drive where `target` exists by deleting items inside of `target` (witth preference given to older items):
+To clear up 30% of the drive where `target` exists by deleting items inside of `target` (with preference given to older items):
 
 ```
 $ cleanup_manager.py -f 30 /path/to/target
