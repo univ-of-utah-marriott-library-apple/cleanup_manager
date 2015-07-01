@@ -12,7 +12,7 @@ def delete_links(links, logger):
     """
     for link in links:
         try:
-            logger.debug("    Unlinking: {}".format(link))
+            logger.info("    Unlinking: {}".format(link))
             os.unlink(link)
         except IOError as (errno, strerror):
             logger.error("I/O Error({}): {}".format(errno, strerror))
@@ -29,7 +29,7 @@ def delete_files(files, logger):
     """
     for file in files:
         try:
-            logger.debug("    Deleting File: {}".format(file))
+            logger.info("    Deleting File: {}".format(file))
             os.remove(file)
         except IOError as (errno, strerror):
             logger.error("I/O Error({}): {}".format(errno, strerror))
@@ -46,7 +46,7 @@ def delete_folders(folders, logger):
     """
     for folder in folders:
         try:
-            logger.debug("    Removing Directory: {}".format(folder))
+            logger.info("    Removing Directory: {}".format(folder))
             shutil.rmtree(folder)
         except IOError as (errno, strerror):
             logger.error("I/O Error({}): {}".format(errno, strerror))
