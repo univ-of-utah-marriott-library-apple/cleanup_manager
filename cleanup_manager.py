@@ -65,34 +65,28 @@ def main(target, keep_after, free_space, oldest_first, skip_prompt, overflow, lo
         logger.info("Deleting {} bytes of data from {}".format(deleted_space, target))
     
     # Remove links first.
-    logger.info("Removing bad links:")
     if len(delete_links) == 0:
-        logger.debug("    [NONE]")
+        logger.info("No links to remove.")
     else:
-        for link in delete_links:
-            logger.verbose("    {}".format(link))
+        logger.info("Removing bad links...")
         cleanup_management.cleanup.delete_links(delete_links, logger)
-        logger.debug("Bad links removed.")
+        logger.info("Bad links removed.")
     
     # Then delete files.
-    logger.info("Removing files:")
     if len(delete_files) == 0:
-        logger.debug("    [NONE]")
+        logger.info("No files to remove.")
     else:
-        for file in delete_files:
-            logger.verbose("    {}".format(file))
+        logger.info("Removing files...")
         cleanup_management.cleanup.delete_files(delete_files, logger)
-        logger.debug("Files removed.")
+        logger.info("Files removed.")
     
     # And then delete folders.
-    logger.info("Removing folders:")
     if len(delete_folders) == 0:
-        logger.debug("    [NONE]")
+        logger.info("No folders to remove.")
     else:
-        for folder in delete_folders:
-            logger.verbose("    {}".format(folder))
+        logger.info("Removing folders...")
         cleanup_management.cleanup.delete_folders(delete_folders, logger)
-        logger.debug("Folders removed.")
+        logger.info("Folders removed.")
     
     logger.info("Cleanup complete.")
 
