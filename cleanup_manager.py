@@ -25,10 +25,10 @@ except ImportError as e:
 def main(target, keep_after, free_space, oldest_first, skip_prompt, overflow, logger):
     # Get an absolute reference to the target path.
     target = os.path.abspath(os.path.expanduser(target))
-    
+
     # Obtain the initial inventory.
     folders, files, links = cleanup_management.analysis.get_inventory(target, logger)
-    
+
     # Build the appropriate deletion inventory.
     if keep_after is not None:
         delete_folders, delete_files, delete_links = cleanup_management.analysis.get_date_based_deletable_inventory(keep_after=keep_after, logger=logger, folders=folders, files=files, links=links)
@@ -36,34 +36,34 @@ def main(target, keep_after, free_space, oldest_first, skip_prompt, overflow, lo
         delete_folders, delete_files, delete_links, deleted_space = cleanup_management.analysis.get_size_based_deletable_inventory(target_space=free_space, logger=logger, oldest_first=oldest_first, overflow=overflow, folders=folders, files=files, links=links)
     else:
         raise RuntimeError("Did not specify either --keep-after or --freeup.")
-    
+
     # Inform the user about stuff (if they wanted it).
     if not skip_prompt:
         logger.info("These items will be deleted:")
-        
+
         if len(delete_links) > 0:
             logger.info("    Links:")
             for link in delete_links:
                 logger.info("        {}".format(link))
-        
+
         if len(delete_files) > 0:
             logger.info("    Files:")
             for file in delete_files:
                 logger.info("        {}".format(file))
-        
+
         if len(delete_folders) > 0:
             logger.info("    Folders:")
             for folder in delete_folders:
                 logger.info("        {}".format(folder))
-        
+
         if not query_yes_no("Proceed with cleanup?"):
             sys.exit(7)
-    
+
     if keep_after:
         logger.info("Deleting contents recursively older than {} from {}".format(datetime.datetime.fromtimestamp(keep_after), target))
     else:
         logger.info("Deleting {} bytes of data from {}".format(deleted_space, target))
-    
+
     # Remove links first.
     if len(delete_links) == 0:
         logger.info("No links to remove.")
@@ -71,7 +71,7 @@ def main(target, keep_after, free_space, oldest_first, skip_prompt, overflow, lo
         logger.info("Removing bad links...")
         cleanup_management.cleanup.delete_links(delete_links, logger)
         logger.info("Bad links removed.")
-    
+
     # Then delete files.
     if len(delete_files) == 0:
         logger.info("No files to remove.")
@@ -79,7 +79,7 @@ def main(target, keep_after, free_space, oldest_first, skip_prompt, overflow, lo
         logger.info("Removing files...")
         cleanup_management.cleanup.delete_files(delete_files, logger)
         logger.info("Files removed.")
-    
+
     # And then delete folders.
     if len(delete_folders) == 0:
         logger.info("No folders to remove.")
@@ -87,13 +87,13 @@ def main(target, keep_after, free_space, oldest_first, skip_prompt, overflow, lo
         logger.info("Removing folders...")
         cleanup_management.cleanup.delete_folders(delete_folders, logger)
         logger.info("Folders removed.")
-    
+
     logger.info("Cleanup complete.")
 
 def query_yes_no(question):
     """
     Asks a user a yes/no question and expects a valid response.
-    
+
     :param question: The prompt to give to the user.
     :return: A boolean; True for 'yes', False for 'no'.
     """
@@ -101,7 +101,7 @@ def query_yes_no(question):
         'yes': True, 'ye': True, 'y': True,
         'no': False, 'n': False
     }
-    
+
     # Until they give valid input, loop and keep asking the question.
     while True:
         # Note the comma at the end. We don't want a newline.
@@ -127,7 +127,7 @@ def usage():
     Prints usage information.
     """
     print(version())
-    
+
     print('''\
 usage: {name} [-hvnV] [-l log] [-k date] [-f format] target
 
@@ -171,7 +171,7 @@ Delete old items from a specific directory, but only at a top-level granularity.
         to - but not more than - the amount.) This is useful when your top-level
         directory only contains items that are greater in size than the target
         free space amount.
-    
+
     target
         The top-level directory to delete from within.
 
@@ -199,7 +199,13 @@ KEEP-AFTER DATE
         y - years
     and "r" or "R" indicates that the date should be rounded back to
     the previous midnight.
-    
+
+    Note: When deleting directories, Cleanup Manager will search the full
+    contents of a directory to find the file with the most recent timestamp.
+    This ensures that folders aren't deleted whose contents were modified after
+    the 'keep-after' date even if the folder's own modification timestamp is
+    from before that date.
+
 Example
     To delete everything older than four days ago:
         cleanup_manager.py -k 4d /path/to/target
@@ -211,12 +217,12 @@ FREEUP SPACE
       2. A number of bytes to have free on the drive (this is different).
       3. A percentage representing the amount of free space you want on the
          drive.
-    
+
     These can be inputted as (for example):
       1. 10g    - will attempt to remote 10 gigabytes of data
       2. 10gf   - 10 gigabytes will be free after cleanup runs
       3. 10     - 10% of the drive will be free after cleanup
-    
+
     There are five supported byte modifiers to specify explicit sizes:
       b: bytes
       k: kilobytes - 1024 bytes
@@ -248,10 +254,10 @@ LINKS
 def date_to_unix(date, date_format):
     """
     Converts a date to a local Unix timestamp (non-UTC).
-    
+
     The date can be either absolute or relative. Absolute dates can be given
     with a format to indicate how you want it parsed.
-    
+
     Relative dates can be given as:
         NNNXr
     where "N" is an integer number, "X" represents a shorthand form of
@@ -263,7 +269,7 @@ def date_to_unix(date, date_format):
         y - years
     and "r" or "R" indicates that the date should be rounded back to
     the previous midnight.
-    
+
     :param date:
     :param date_format:
     :return: The Unix timestamp of the given date as a float.
@@ -275,23 +281,23 @@ def date_to_unix(date, date_format):
         # If that didn't work, let's try to parse the string for a relative
         # date according to the given specifications.
         relative_match = re.match(r"\A-?(\d+)([a-zA-Z]?)([rR]?)\Z", date)
-        
+
         if relative_match:
             # If no scale is given, "D" is assumed.
             if not relative_match.group(2):
                 scale = 'd'
             else:
                 scale = relative_match.group(2)
-            
+
             # If rounding is not specified, don't do it.
             if not relative_match.group(3):
                 rounding = False
             else:
                 rounding = True
-            
+
             # Set the amount of change.
             amount = int(relative_match.group(1))
-            
+
             if scale == 'M':
                 # Minutes
                 seconds = amount * 60
@@ -310,29 +316,29 @@ def date_to_unix(date, date_format):
             else:
                 # Invalid specification.
                 raise ValueError("{date} is not a valid relative date value".format(date=date))
-            
+
             days    = seconds / 86399
             seconds = seconds % 86399
-            
+
             time_difference = datetime.timedelta(days=days, seconds=seconds)
-            
+
             # Calculate the target date.
             target_date = datetime.datetime.now() - time_difference
-            
+
             # If rounding was specified, round to the previous midnight.
             if rounding:
                 target_date = target_date.replace(hour=0, minute=0, second=0, microsecond=0)
         else:
             # Neither of these is valid. Raise an exception.
             raise ValueError("{date} is not a valid date specification".format(date=date))
-    
+
     # Buidl up the current time for Unix time conversion.
     time_tuple = time.struct_time((
         target_date.year, target_date.month, target_date.day,
         target_date.hour, target_date.minute, target_date.second, -1, -1, -1
     ))
     unix_time = time.mktime(time_tuple) + (target_date.microsecond / 1e6)
-    
+
     return unix_time
 
 
@@ -340,25 +346,25 @@ def volume_size_target(size, target, logger=None):
     """
     Converts a size into a number of bytes to clear up on the filesystem where
     'target' exists.
-    
+
     The size can be given in one of three ways:
       1. A number of bytes to free up on the drive.
       2. A number of bytes to have free on the drive (this is different).
       3. A percentage representing the amount of free space you want on the
          drive.
-    
+
     These can be inputted as (for example):
       1. 10g    - will attempt to remote 10 gigabytes of data
       2. 10gf   - 10 gigabytes will be free after cleanup runs
       3. 10     - 10% of the drive will be free after cleanup
-    
+
     There are five supported byte modifiers to specify explicit sizes:
       b: bytes
       k: kilobytes - 1024 bytes
       m: megabytes - 1024 kilobytes
       g: gigabytes - 1024 megabytes
       t: terabytes - 1024 gigabytes
-    
+
     :param size: the amount to clear up on the volume where 'target' exists
     :param target: the location in the system where cleanup will occur
     :param logger: a Management Tools logger (if you want some things logged)
@@ -371,10 +377,10 @@ def volume_size_target(size, target, logger=None):
     try:
         # Is it just the percentage?
         percentage = int(size)
-        
+
         # Convert to a decimal percentage for math.
         percentage = float(percentage) / 100.0
-        
+
         # Take the ceiling of the product of the percentage with the number of
         # blocks available.
         from math import ceil
@@ -385,11 +391,11 @@ def volume_size_target(size, target, logger=None):
         size_match = re.match(r"^(\d+)([bkmgt])([f]?)$", size.lower())
         if not size_match:
             raise ValueError("{size} is not a valid size-deletion target".format(size=size))
-        
+
         amount, indicator, total_free = size_match.groups()
         total_free = True if total_free else False
         amount     = int(amount)
-        
+
         # Concordance between letters and their "byte powers"!
         size_indicators = {
             'b': 0,     # bytes                      = amount * (1024^0)
@@ -398,28 +404,28 @@ def volume_size_target(size, target, logger=None):
             'g': 3,     # gigabytes (1024 megabytes) = amount * (1024^3)
             't': 4      # terabytes (1024 gigabytes) = amount * (1024^4)
         }
-        
+
         # Convert the 'amount' into a target amount of bytes to delete.
         from math import pow
         byte_multiplier = int(pow(1024, size_indicators[indicator]))
         free_target = amount * byte_multiplier
-        
+
         if total_free:
             delete_target = free_target - volume.bytes_free
         else:
             delete_target = free_target
-    
+
     # Check if anything happened. If not... problems.
     if delete_target is None:
         raise RuntimeError("No target deletion size could be found.")
-    
+
     # Check that the volume can actually have that much space deleted.
     if delete_target < 0:
         raise ValueError("Negative target deletion size encountered - is there already enough free space?")
     if delete_target > volume.bytes:
         if logger:
             logger.warn("Too many bytes to delete; will delete as much as possible.")
-    
+
     # Return the amount of bytes to delete.
     return delete_target
 
@@ -443,24 +449,24 @@ if __name__ == '__main__':
     parser.add_argument('--delete-largest-first', action='store_false', dest='delete_oldest_first')
     parser.add_argument('--overflow', action='store_true')
     parser.add_argument('target', nargs='?', default=os.getcwd())
-    
+
     # Parse the arguments.
     args = parser.parse_args()
-    
+
     if args.keep_after and args.freeup:
         parser.error("You may only specify one of --keep-after and --freeup.")
-    
+
     if not args.keep_after and not args.freeup:
         args.keep_after = '-7dr'
-    
+
     if args.help:
         usage()
         sys.exit(0)
-    
+
     if args.version:
         print(version())
         sys.exit(0)
-    
+
     # Set the logging level. There's the regular level, the verbose level,
     # and the super-verbose level.
     if args.verbose is None:
@@ -469,7 +475,7 @@ if __name__ == '__main__':
         log_level = 10
     else:
         log_level = 5
-    
+
     # Build the logger.
     logger = loggers.get_logger(
         name  = 'cleanup_manager',
@@ -477,11 +483,11 @@ if __name__ == '__main__':
         level = log_level,
         path  = args.log_dest
     )
-    
+
     # Set output logging prompts.
     for logging_level in [x for x in logger.prompts.keys() if x <= loggers.INFO]:
         logger.set_prompt(logging_level, '')
-    
+
     # Get the necessary information to perform cleanup. Either calculate the
     # unix date of the time to delete before, or find the amount of space to
     # delete off the given volume.
@@ -491,7 +497,7 @@ if __name__ == '__main__':
     elif args.freeup:
         keep_after = None
         free_space = volume_size_target(args.freeup, args.target, logger)
-    
+
     # Run it!
     try:
         main(
