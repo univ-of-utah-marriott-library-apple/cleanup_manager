@@ -94,6 +94,7 @@ This is a short, reverse-chronological summary of the updates to this project.
 
 | Date       | Version   | Update Description                                                           |
 |------------|:---------:|------------------------------------------------------------------------------|
+| 2015-07-01 | 1.4.0     | Updated logging to change outputs slightly (for better readability).         |
 | 2015-05-19 | 1.3.0     | New `--overflow` flag ensures specified disk space will be cleared.          |
 | 2015-05-18 | 1.2.0     | Added increased verbosity availability via more `-V` flags.                  |
 | 2015-03-31 | 1.1.1     | Amended logic to handle combinations of size- and date-based deletions.      |
