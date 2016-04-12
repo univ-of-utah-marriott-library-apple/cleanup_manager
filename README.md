@@ -51,6 +51,7 @@ $ cleanup_manager.py [-hvnV] [-l log] [-k date] [-f format] target
 | `-k date`, `--keep-after date`        | The date to keep items after. Default is seven days prior to invocation.      |
 | `-d format`, `--date-format format`   | Format of the given date. Useful if you have that one particular way of formatting your dates and you don't want to change. |
 | `-f size`, `--freeup size`            | The amount of space to attempt to free up.                                    |
+| `-t trigger`, `--dir-trigger trigger` | A specific file to set a directory's timestamp from within that directory.    |
 | `--delete-oldest-first`               | When deleting by size, older items are deleted first. This is the default.    |
 | `--delete-largest-first`              | When deleting by size, larger items are deleted first.                        |
 | `--overflow`                          | Allows the script to delete more than just the size specified to hit target.  |
@@ -94,6 +95,7 @@ This is a short, reverse-chronological summary of the updates to this project.
 
 | Date       | Version   | Update Description                                                           |
 |------------|:---------:|------------------------------------------------------------------------------|
+| 2016-04-12 | 1.5.0     | Added `--dir-trigger` option for folder-level trigger files.                 |
 | 2015-07-01 | 1.4.0     | Updated logging to change outputs slightly (for better readability).         |
 | 2015-05-19 | 1.3.0     | New `--overflow` flag ensures specified disk space will be cleared.          |
 | 2015-05-18 | 1.2.0     | Added increased verbosity availability via more `-V` flags.                  |

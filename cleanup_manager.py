@@ -22,7 +22,7 @@ except ImportError as e:
     raise e
 
 
-def main(target, keep_after, free_space, oldest_first, skip_prompt, overflow, logger):
+def main(target, keep_after, free_space, oldest_first, skip_prompt, overflow, dir_trigger, logger):
     # Get an absolute reference to the target path.
     target = os.path.abspath(os.path.expanduser(target))
 
@@ -31,7 +31,7 @@ def main(target, keep_after, free_space, oldest_first, skip_prompt, overflow, lo
 
     # Build the appropriate deletion inventory.
     if keep_after is not None:
-        delete_folders, delete_files, delete_links = cleanup_management.analysis.get_date_based_deletable_inventory(keep_after=keep_after, logger=logger, folders=folders, files=files, links=links)
+        delete_folders, delete_files, delete_links = cleanup_management.analysis.get_date_based_deletable_inventory(keep_after=keep_after, logger=logger, folders=folders, files=files, links=links, trigger=dir_trigger)
     elif free_space is not None and oldest_first is not None:
         delete_folders, delete_files, delete_links, deleted_space = cleanup_management.analysis.get_size_based_deletable_inventory(target_space=free_space, logger=logger, oldest_first=oldest_first, overflow=overflow, folders=folders, files=files, links=links)
     else:
@@ -158,6 +158,13 @@ Delete old items from a specific directory, but only at a top-level granularity.
         default: '%Y-%m-%d'
     -f size, --freeup size
         The amount of space to attempt to free up.
+    -t trigger, --dir-trigger trigger
+        Sets a specific file to look for in the top-level of directories inside
+        the specified target directory. If this file exists, its timestamp will
+        be used in place of the directory's timestamp to determine removal. If
+        the file does not exist, the timestamp for the directory will be found
+        through the usual method.
+            (Only has an effect with date-based deletion.)
     --delete-oldest-first
         When deleting by size, older items are deleted first to free up the
         designated `--freeup` space.
@@ -445,6 +452,7 @@ if __name__ == '__main__':
     parser.add_argument('-k', '--keep-after', default=None)
     parser.add_argument('-d', '--date-format', default='%Y-%m-%d')
     parser.add_argument('-f', '--freeup', default=None)
+    parser.add_argument('-t', '--dir-trigger', default=None)
     parser.add_argument('--delete-oldest-first', action='store_true', default=True)
     parser.add_argument('--delete-largest-first', action='store_false', dest='delete_oldest_first')
     parser.add_argument('--overflow', action='store_true')
@@ -507,9 +515,10 @@ if __name__ == '__main__':
             oldest_first = args.delete_oldest_first,
             skip_prompt  = args.skip_prompt,
             overflow     = args.overflow,
+            dir_trigger  = args.dir_trigger,
             logger       = logger,
         )
     except:
         # Output the exception with the error name and its message. Suppresses the stack trace.
-        logger.error("{errname}: {error}".format(errname=sys.exc_info()[0].__name__, error=' '.join(sys.exc_info()[1])))
+        logger.error("{errname}: {error}".format(errname=sys.exc_info()[0].__name__, error=' '.join([str(x) for x in sys.exc_info()[1]])))
         raise
